@@ -64,36 +64,10 @@ export default function App() {
         />
       )}
 
-      {/* Floating Minimal Controls (Music, Replay Landing, & Settings) */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-        <button
-          onClick={() => setHasOpenedSurprise(false)}
-          className="p-2.5 rounded-full bg-white/90 hover:bg-white backdrop-blur-md border border-rose-200 text-rose-600 shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 px-3 text-xs font-bold"
-          title="Replay Opening Landing Page"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-          <span className="hidden sm:inline">Landing</span>
-        </button>
 
-        <button
-          onClick={handleToggleMusic}
-          className="p-2.5 rounded-full bg-white/90 hover:bg-white backdrop-blur-md border border-rose-200 text-rose-600 shadow-md transition-all active:scale-95 cursor-pointer"
-          title={isPlayingMusic ? 'Mute Music' : 'Play Music'}
-        >
-          {isPlayingMusic ? <Music className="w-4 h-4 text-rose-500" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
-        </button>
-
-        <button
-          onClick={() => setShowCreator(true)}
-          className="p-2.5 rounded-full bg-white/90 hover:bg-white backdrop-blur-md border border-rose-200 text-rose-600 shadow-md transition-all active:scale-95 cursor-pointer"
-          title="Personalize Card"
-        >
-          <Settings className="w-4 h-4 text-rose-500" />
-        </button>
-      </div>
 
       {/* Primary Focused Stage Container */}
-      <main className="relative z-10 flex-1 my-4 sm:my-8 px-2 sm:px-4">
+      <main className="relative z-10 flex-1 my-8 sm:my-16 px-4 sm:px-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeSection}
