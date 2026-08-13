@@ -1,19 +1,91 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
-import { Mic, MicOff, Sparkles, Wind, Flame, Heart, Send } from 'lucide-react';
+import { Mic, Wind, Flame, Heart, Send, Sparkles, ArrowRight, Scissors } from 'lucide-react';
 import { soundFx } from '../lib/audio';
+import { GIF_URLS, ChiikawaGIFImage } from './ChiikawaBackground';
 
 interface BirthdayCakeProps {
   recipientName: string;
   turningAge: number;
+  onNextSurprise?: () => void;
 }
 
-export const BirthdayCake: React.FC<BirthdayCakeProps> = ({ recipientName, turningAge }) => {
-  const [candlesLit, setCandlesLit] = useState(true);
+// Vector Strawberry Icon
+const StrawberryIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+  <svg viewBox="0 0 32 32" className={`${className} filter drop-shadow-sm inline-block`}>
+    <path
+      d="M16 29C16 29 6 22 6 13C6 8 10 5 16 5C22 5 26 8 26 13C26 22 16 29 16 29Z"
+      fill="#F43F5E"
+    />
+    <path
+      d="M16 5C13 2 9 3 9 3C9 3 11 7 14 7C17 7 19 3 19 3C19 3 23 2 20 5C18 7 16 5 16 5Z"
+      fill="#22C55E"
+    />
+    <circle cx="11" cy="12" r="1" fill="#FEF08A" />
+    <circle cx="15" cy="16" r="1" fill="#FEF08A" />
+    <circle cx="21" cy="13" r="1" fill="#FEF08A" />
+    <circle cx="18" cy="21" r="1" fill="#FEF08A" />
+    <circle cx="13" cy="22" r="1" fill="#FEF08A" />
+  </svg>
+);
+
+// Vector Twin Cherries Icon
+const CherriesIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+  <svg viewBox="0 0 32 32" className={`${className} filter drop-shadow-sm inline-block`}>
+    <path d="M11 15Q15 6 20 4" stroke="#15803D" strokeWidth="2" fill="none" strokeLinecap="round" />
+    <path d="M21 15Q17 8 20 4" stroke="#15803D" strokeWidth="2" fill="none" strokeLinecap="round" />
+    <circle cx="10" cy="19" r="6" fill="#E11D48" />
+    <circle cx="22" cy="19" r="6" fill="#BE123C" />
+    <circle cx="8" cy="17" r="2" fill="#FDA4AF" opacity="0.8" />
+    <circle cx="20" cy="17" r="2" fill="#FDA4AF" opacity="0.8" />
+  </svg>
+);
+
+// Scalloped Frosting Drips SVG Border
+const ScallopedFrostingDrips: React.FC<{ className?: string; color?: string }> = ({
+  className = 'w-full h-4',
+  color = '#FCE7F3',
+}) => (
+  <svg
+    viewBox="0 0 600 24"
+    preserveAspectRatio="none"
+    className={`${className} absolute left-0 right-0 -bottom-3 z-10 pointer-events-none drop-shadow-xs`}
+  >
+    <path
+      d="M0,0 L600,0 L600,6 C580,18 560,18 540,6 C520,22 500,22 480,6 C460,18 440,18 420,6 C400,22 380,22 360,6 C340,18 320,18 300,6 C280,22 260,22 240,6 C220,18 200,18 180,6 C160,22 140,22 120,6 C100,18 80,18 60,6 C40,22 20,22 0,6 Z"
+      fill={color}
+    />
+  </svg>
+);
+
+// Piped Cream Pearls Row Component
+const PipedCreamRow: React.FC<{ count?: number }> = ({ count = 12 }) => (
+  <div className="absolute -top-2.5 inset-x-0 flex justify-between px-2 z-20 pointer-events-none">
+    {Array.from({ length: count }).map((_, i) => (
+      <div
+        key={i}
+        className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-b from-white via-pink-50 to-pink-100 shadow-sm border border-pink-200/80 transform -translate-y-1/2"
+      />
+    ))}
+  </div>
+);
+
+export const BirthdayCake: React.FC<BirthdayCakeProps> = ({
+  recipientName,
+  turningAge,
+  onNextSurprise,
+}) => {
+  const candleCount = Math.min(7, Math.max(3, turningAge > 0 ? 5 : 5));
+  const [candlesState, setCandlesState] = useState<boolean[]>(() =>
+    Array(candleCount).fill(true)
+  );
+
   const [micActive, setMicActive] = useState(false);
-  const [blowLevel, setBlowLevel] = useState(0); // 0 to 100
+  const [blowLevel, setBlowLevel] = useState(0);
   const [showWishModal, setShowWishModal] = useState(false);
+  const [showSliceModal, setShowSliceModal] = useState(false);
+  const [isSliced, setIsSliced] = useState(false);
   const [wishText, setWishText] = useState('');
   const [wishSaved, setWishSaved] = useState(false);
 
@@ -22,44 +94,77 @@ export const BirthdayCake: React.FC<BirthdayCakeProps> = ({ recipientName, turni
   const micStreamRef = useRef<MediaStream | null>(null);
   const blowTimeoutRef = useRef<number | null>(null);
 
-  // Extinguish candles logic
-  const handleExtinguish = () => {
-    if (!candlesLit) return;
-    setCandlesLit(false);
+  const allCandlesOut = candlesState.every((lit) => !lit);
 
+  const handleToggleCandle = (idx: number) => {
+    soundFx.playBlowout();
+    setCandlesState((prev) => {
+      const next = [...prev];
+      next[idx] = !next[idx];
+
+      const nowAllOut = next.every((lit) => !lit);
+      if (nowAllOut) {
+        soundFx.playFanfare();
+        confetti({
+          particleCount: 180,
+          spread: 100,
+          origin: { y: 0.6 },
+          colors: ['#f472b6', '#fb7185', '#fda4af', '#fde047', '#e879f9', '#a7f3d0'],
+        });
+        setTimeout(() => setShowWishModal(true), 1100);
+      }
+      return next;
+    });
+  };
+
+  const handleExtinguishAll = () => {
+    setCandlesState(Array(candleCount).fill(false));
     soundFx.playBlowout();
     soundFx.playFanfare();
 
-    // Trigger celebratory confetti
     confetti({
-      particleCount: 150,
-      spread: 90,
+      particleCount: 180,
+      spread: 110,
       origin: { y: 0.6 },
-      colors: ['#f472b6', '#fbbf24', '#38bdf8', '#fb7185', '#c084fc']
+      colors: ['#f472b6', '#fb7185', '#fda4af', '#fde047', '#e879f9', '#a7f3d0'],
     });
 
-    // Show wish modal after short delay
     setTimeout(() => {
       setShowWishModal(true);
-    }, 1500);
+    }, 1100);
 
-    // Stop mic if active
     stopMic();
   };
 
-  // Relight candles
-  const handleRelight = () => {
-    setCandlesLit(true);
+  const handleRelightAll = () => {
+    setCandlesState(Array(candleCount).fill(true));
     setWishSaved(false);
+    setIsSliced(false);
   };
 
-  // Microphone audio volume monitoring
+  const handleSliceCake = () => {
+    soundFx.playUnlock();
+    setIsSliced(true);
+    confetti({
+      particleCount: 80,
+      spread: 60,
+      origin: { y: 0.65 },
+      colors: ['#fda4af', '#fde047', '#f472b6'],
+    });
+    setTimeout(() => {
+      setShowSliceModal(true);
+    }, 600);
+  };
+
   const startMic = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       micStreamRef.current = stream;
 
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
       const ctx = new AudioCtx();
       audioCtxRef.current = ctx;
 
@@ -73,27 +178,22 @@ export const BirthdayCake: React.FC<BirthdayCakeProps> = ({ recipientName, turni
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-
       let blowAccumulator = 0;
 
       const checkVolume = () => {
         if (!analyserRef.current) return;
         analyserRef.current.getByteFrequencyData(dataArray);
 
-        // Calculate average volume in low-mid frequencies (typical for air blowing)
         let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
+        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
         const avg = sum / bufferLength;
         const normalized = Math.min(100, Math.round((avg / 128) * 100));
         setBlowLevel(normalized);
 
-        // Air blow usually produces steady high volume (> 35)
         if (normalized > 35) {
           blowAccumulator += 1;
-          if (blowAccumulator > 12) { // sustained blow for ~0.3s
-            handleExtinguish();
+          if (blowAccumulator > 8) {
+            handleExtinguishAll();
             return;
           }
         } else {
@@ -105,16 +205,14 @@ export const BirthdayCake: React.FC<BirthdayCakeProps> = ({ recipientName, turni
 
       checkVolume();
     } catch (err) {
-      console.warn('Microphone permission denied or unsupported:', err);
-      alert('Microphone access was denied or is unavailable. You can click on the candles directly to blow them out!');
+      console.warn('Mic error:', err);
+      alert('Microphone access unavailable. Tap directly on each candle to blow them out!');
       setMicActive(false);
     }
   };
 
   const stopMic = () => {
-    if (blowTimeoutRef.current) {
-      cancelAnimationFrame(blowTimeoutRef.current);
-    }
+    if (blowTimeoutRef.current) cancelAnimationFrame(blowTimeoutRef.current);
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach((track) => track.stop());
       micStreamRef.current = null;
@@ -128,9 +226,7 @@ export const BirthdayCake: React.FC<BirthdayCakeProps> = ({ recipientName, turni
   };
 
   useEffect(() => {
-    return () => {
-      stopMic();
-    };
+    return () => stopMic();
   }, []);
 
   const handleSaveWish = (e: React.FormEvent) => {
@@ -140,227 +236,297 @@ export const BirthdayCake: React.FC<BirthdayCakeProps> = ({ recipientName, turni
     soundFx.playUnlock();
     setTimeout(() => {
       setShowWishModal(false);
-    }, 1500);
+    }, 1200);
   };
 
-  const candleCount = 5; // 5 decorative candles on top tier
-
   return (
-    <section id="cake" className="py-16 md:py-24 relative overflow-hidden bg-slate-900/40 text-white">
-      <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
-        
-        {/* Section Header */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs font-semibold mb-4">
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-          <span>Interactive Birthday Ritual</span>
+    <div className="py-6 md:py-10 max-w-4xl mx-auto px-4 text-center select-none font-nunito">
+      {/* Title */}
+      <h2 className="text-3xl sm:text-5xl md:text-6xl font-black text-slate-900 mb-2 font-fredoka tracking-tight drop-shadow-sm">
+        Make a Wish, {recipientName}! 🕯️
+      </h2>
+      <p className="text-slate-600 text-xs sm:text-sm md:text-base mb-6 max-w-lg mx-auto font-bold">
+        Tap individual candles or blow into your microphone to extinguish the birthday flames!
+      </p>
+
+      {/* Grand 2.5D Vector Cake Stage Container */}
+      <div className="relative my-6 py-4 flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12">
+        {/* Left Companion Chiikawa GIF */}
+        <div className="hidden sm:block">
+          <ChiikawaGIFImage
+            src={GIF_URLS.chiikawaBirthday}
+            alt="Chiikawa Birthday GIF"
+            className="w-28 h-28 sm:w-36 sm:h-36 lg:w-40 lg:h-40 filter drop-shadow-md"
+          />
         </div>
 
-        <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-rose-200 to-pink-300 mb-3">
-          Make a Wish & Blow The Candles! 🕯️
-        </h2>
-        <p className="text-slate-300 text-sm md:text-base max-w-xl mx-auto mb-10">
-          Click the candles OR activate your microphone and blow directly into your device to extinguish the flames and make your {turningAge}th birthday wish come true!
-        </p>
+        {/* Center Grand Cake Block */}
+        <div className="relative flex flex-col items-center justify-center">
+          {/* Fruit Toppings Perched on Top Layer */}
+          <div className="flex items-center justify-center gap-6 sm:gap-10 mb-[-14px] z-25 pointer-events-none">
+            <StrawberryIcon className="w-7 h-7 sm:w-9 sm:h-9 transform -rotate-12 animate-pulse" />
+            <CherriesIcon className="w-8 h-8 sm:w-10 sm:h-10 transform rotate-6" />
+            <StrawberryIcon className="w-7 h-7 sm:w-9 sm:h-9 transform rotate-12 animate-pulse" />
+          </div>
 
-        {/* 3D Visual Birthday Cake Container */}
-        <div className="relative my-8 py-10 flex flex-col items-center justify-center">
-          
-          {/* Cake Candles & Flames */}
-          <div className="flex justify-center gap-4 md:gap-6 mb-[-8px] z-20">
-            {Array.from({ length: candleCount }).map((_, idx) => (
+          {/* Interactive Birthday Candles */}
+          <div className="flex justify-center gap-5 sm:gap-8 md:gap-10 mb-[-12px] z-30">
+            {candlesState.map((isLit, idx) => (
               <div
                 key={idx}
-                onClick={handleExtinguish}
-                title="Click to blow out candle!"
+                onClick={() => handleToggleCandle(idx)}
+                title="Tap to blow out candle!"
                 className="relative cursor-pointer group flex flex-col items-center"
               >
-                {/* Flame or Smoke */}
-                <AnimatePresence>
-                  {candlesLit ? (
+                <AnimatePresence mode="wait">
+                  {isLit ? (
                     <motion.div
                       key="flame"
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{
-                        scale: [1, 1.15, 0.95, 1.05, 1],
-                        rotate: [-3, 3, -2, 2, 0],
+                        scale: [1, 1.2, 0.95, 1],
+                        rotate: [-4, 4, -2, 0],
                         opacity: 1,
                       }}
                       exit={{ scale: 0, opacity: 0 }}
-                      transition={{ repeat: Infinity, duration: 0.6 + idx * 0.1 }}
-                      className="relative w-5 h-7 md:w-6 md:h-8 flex items-end justify-center"
+                      transition={{ repeat: Infinity, duration: 0.5 + idx * 0.12 }}
+                      className="relative w-6 h-8 sm:w-8 sm:h-10 flex items-end justify-center"
                     >
-                      {/* Outer Glow */}
-                      <div className="absolute inset-0 bg-amber-400 rounded-full blur-sm opacity-80 animate-pulse" />
-                      {/* Inner Flame */}
-                      <div className="w-3.5 h-5 bg-gradient-to-t from-orange-500 via-amber-300 to-yellow-100 rounded-full shadow-lg" />
+                      <div className="absolute inset-0 bg-amber-400/90 rounded-full blur-xs animate-pulse" />
+                      <div className="w-4 h-6 sm:w-5 sm:h-7 bg-gradient-to-t from-rose-500 via-amber-300 to-yellow-100 rounded-full shadow-md" />
                     </motion.div>
                   ) : (
                     <motion.div
                       key="smoke"
-                      initial={{ y: 0, opacity: 0.8, scale: 0.5 }}
-                      animate={{ y: -40, opacity: 0, scale: 2 }}
-                      transition={{ duration: 1.5, ease: 'easeOut' }}
-                      className="w-4 h-4 bg-slate-400 rounded-full blur-md"
+                      initial={{ y: 0, opacity: 0.9, scale: 0.6 }}
+                      animate={{ y: -36, opacity: 0, scale: 2.2 }}
+                      transition={{ duration: 1.4, ease: 'easeOut' }}
+                      className="w-5 h-5 bg-slate-300 rounded-full blur-xs"
                     />
                   )}
                 </AnimatePresence>
 
-                {/* Candle Stick */}
-                <div className="w-3 md:w-4 h-12 md:h-16 bg-gradient-to-b from-rose-200 via-pink-300 to-rose-400 rounded-t-sm shadow-md border-x border-pink-400/50 relative">
-                  {/* Decorative stripes */}
-                  <div className="absolute inset-x-0 top-2 h-1 bg-white/60" />
-                  <div className="absolute inset-x-0 top-6 h-1 bg-white/60" />
-                  <div className="absolute inset-x-0 top-10 h-1 bg-white/60" />
+                {/* Candle Body with Stripe Pattern */}
+                <div className="w-4 sm:w-5 h-14 sm:h-20 bg-gradient-to-b from-rose-200 via-pink-200 to-rose-300 rounded-t-md shadow-md border-x border-pink-300/80 relative overflow-hidden">
+                  <div className="absolute inset-x-0 top-2 h-1.5 bg-white/90 transform -rotate-12 scale-125" />
+                  <div className="absolute inset-x-0 top-6 h-1.5 bg-white/90 transform -rotate-12 scale-125" />
+                  <div className="absolute inset-x-0 top-10 h-1.5 bg-white/90 transform -rotate-12 scale-125" />
+                  <div className="absolute inset-x-0 top-14 h-1.5 bg-white/90 transform -rotate-12 scale-125" />
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Cake Layers */}
-          <div className="flex flex-col items-center shadow-2xl">
-            {/* Top Cake Tier */}
-            <div className="w-48 md:w-60 h-14 md:h-16 bg-gradient-to-r from-pink-300 via-rose-200 to-pink-300 rounded-t-3xl border-b-4 border-pink-400/60 relative flex items-center justify-center shadow-inner">
-              <div className="absolute inset-x-0 top-0 h-3 bg-white/70 rounded-t-3xl border-b border-pink-300/80" />
-              <span className="text-rose-700 font-extrabold text-sm md:text-base tracking-widest uppercase z-10">
-                Happy {turningAge}th!
+          {/* Cake Cut Line Animation */}
+          {isSliced && (
+            <motion.div
+              initial={{ height: 0 }}
+              animate={{ height: '100%' }}
+              transition={{ duration: 0.5 }}
+              className="absolute top-10 bottom-4 w-1 bg-rose-600 z-40 shadow-lg shadow-rose-300 pointer-events-none"
+            />
+          )}
+
+          {/* 3 Tier Grand 2.5D Vector Cake */}
+          <div className="flex flex-col items-center filter drop-shadow-xl">
+            {/* Top Tier */}
+            <div className="w-64 sm:w-80 md:w-[380px] h-20 sm:h-24 md:h-28 bg-gradient-to-r from-rose-200 via-pink-100 to-rose-200 rounded-t-3xl border-b-4 border-rose-300 relative flex items-center justify-center shadow-md overflow-visible">
+              <PipedCreamRow count={10} />
+              <ScallopedFrostingDrips color="#FFF1F2" />
+              <span className="text-rose-700 font-extrabold text-sm sm:text-base md:text-lg tracking-wider uppercase font-fredoka drop-shadow-xs z-20">
+                Happy Birthday! 🎂
               </span>
             </div>
 
-            {/* Middle Cake Tier */}
-            <div className="w-64 md:w-80 h-16 md:h-20 bg-gradient-to-r from-rose-400 via-pink-400 to-rose-400 border-b-4 border-rose-500/80 relative flex items-center justify-center shadow-md">
-              <div className="absolute inset-x-0 top-0 h-4 bg-pink-200/80 rounded-b-xl" />
-              <div className="flex gap-2 text-rose-200">
-                <Heart className="w-4 h-4 fill-rose-300 text-rose-300" />
-                <Sparkles className="w-4 h-4 text-amber-200" />
-                <Heart className="w-4 h-4 fill-rose-300 text-rose-300" />
+            {/* Middle Tier */}
+            <div className="w-80 sm:w-[420px] md:w-[500px] h-24 sm:h-28 md:h-32 bg-gradient-to-r from-rose-400 via-pink-300 to-rose-400 border-b-4 border-rose-500 relative flex items-center justify-center shadow-lg overflow-visible">
+              <PipedCreamRow count={14} />
+              <ScallopedFrostingDrips color="#FCE7F3" />
+              <div className="flex items-center gap-3 text-white font-black z-20">
+                <Heart className="w-5 h-5 fill-white text-white drop-shadow-xs" />
+                <span className="text-white text-base sm:text-lg md:text-xl tracking-wider font-fredoka drop-shadow-sm">
+                  Turning {turningAge}! 💕
+                </span>
+                <Heart className="w-5 h-5 fill-white text-white drop-shadow-xs" />
               </div>
             </div>
 
-            {/* Bottom Cake Tier */}
-            <div className="w-80 md:w-96 h-20 md:h-24 bg-gradient-to-r from-rose-600 via-pink-500 to-rose-600 rounded-b-2xl border-t-2 border-white/20 relative flex items-center justify-center shadow-2xl">
-              <div className="absolute inset-x-0 top-0 h-4 bg-rose-200/60 rounded-b-xl" />
-              <span className="text-white font-bold text-xs md:text-sm tracking-wider uppercase opacity-90">
+            {/* Bottom Tier */}
+            <div className="w-96 sm:w-[500px] md:w-[600px] h-28 sm:h-34 md:h-40 bg-gradient-to-r from-rose-500 via-pink-400 to-rose-500 rounded-b-3xl border-t-2 border-white/50 relative flex items-center justify-center shadow-2xl overflow-visible">
+              <PipedCreamRow count={18} />
+              <ScallopedFrostingDrips color="#FBCFE8" />
+              <span className="text-white font-extrabold text-lg sm:text-2xl md:text-3xl tracking-wide uppercase font-fredoka [text-shadow:_0_2px_8px_rgba(0,0,0,0.25)] z-20">
                 ✨ {recipientName} ✨
               </span>
             </div>
 
-            {/* Plate Base */}
-            <div className="w-96 md:w-[440px] h-5 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-300 rounded-full shadow-2xl border-t border-white" />
-          </div>
-
-        </div>
-
-        {/* Controls & Mic Indicator */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
-          {candlesLit ? (
-            <>
-              {/* Manual Blow Out Button */}
-              <button
-                onClick={handleExtinguish}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-bold text-sm shadow-xl shadow-rose-500/25 flex items-center gap-2 transition-all active:scale-95"
-              >
-                <Flame className="w-4 h-4 text-amber-300" />
-                <span>Tap To Blow Out Candles</span>
-              </button>
-
-              {/* Mic Toggle Button */}
-              <button
-                onClick={micActive ? stopMic : startMic}
-                className={`px-6 py-3 rounded-2xl border text-sm font-bold flex items-center gap-2 transition-all active:scale-95 ${
-                  micActive
-                    ? 'bg-amber-500/20 border-amber-400 text-amber-300 animate-pulse'
-                    : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
-                }`}
-              >
-                {micActive ? (
-                  <>
-                    <Mic className="w-4 h-4 text-amber-300" />
-                    <span>Listening... Blow into Mic! ({blowLevel}%)</span>
-                  </>
-                ) : (
-                  <>
-                    <Wind className="w-4 h-4 text-slate-400" />
-                    <span>Enable Microphone Blow</span>
-                  </>
-                )}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={handleRelight}
-              className="px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-sm flex items-center gap-2 transition-all active:scale-95"
-            >
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>Relight Candles For Another Wish 🕯️</span>
-            </button>
-          )}
-        </div>
-
-        {/* Microphone volume level visualizer bar when active */}
-        {micActive && candlesLit && (
-          <div className="mt-4 max-w-xs mx-auto bg-slate-800 p-2 rounded-full border border-slate-700 flex items-center gap-3">
-            <Wind className="w-4 h-4 text-amber-300 ml-2" />
-            <div className="flex-1 bg-slate-900 h-2.5 rounded-full overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-amber-400 to-rose-500 h-full transition-all duration-75"
-                style={{ width: `${blowLevel}%` }}
-              />
+            {/* Grand Cake Stand Base Plate */}
+            <div className="w-[410px] sm:w-[540px] md:w-[640px] h-7 sm:h-9 bg-gradient-to-r from-slate-200 via-white to-slate-200 rounded-full shadow-2xl border-t-2 border-slate-300 relative flex items-center justify-center">
+              <div className="w-full h-1 bg-slate-300/60 rounded-full" />
             </div>
-            <span className="text-xs text-amber-300 font-mono mr-2">{blowLevel}%</span>
           </div>
-        )}
+        </div>
 
+        {/* Right Companion Chiikawa Trio GIF */}
+        <div className="hidden sm:block">
+          <ChiikawaGIFImage
+            src={GIF_URLS.chiikawaTrio}
+            alt="Chiikawa Trio GIF"
+            className="w-28 h-28 sm:w-36 sm:h-36 lg:w-40 lg:h-40 filter drop-shadow-md"
+          />
+        </div>
       </div>
 
-      {/* Make A Wish Modal */}
+      {/* Blowout & Slice Cake Interactive Action Controls */}
+      <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+        {!allCandlesOut ? (
+          <>
+            <button
+              onClick={handleExtinguishAll}
+              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-rose-200 flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
+            >
+              <Flame className="w-4 h-4 text-amber-200" />
+              <span>Blow Out All Candles 🕯️</span>
+            </button>
+
+            <button
+              onClick={micActive ? stopMic : startMic}
+              className={`px-6 py-3.5 rounded-2xl border text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer ${
+                micActive
+                  ? 'bg-rose-100 border-rose-300 text-rose-700 animate-pulse'
+                  : 'bg-white border-rose-200 text-slate-700 hover:bg-rose-50 shadow-xs'
+              }`}
+            >
+              {micActive ? (
+                <>
+                  <Mic className="w-4 h-4 text-rose-600 animate-bounce" />
+                  <span>Listening... Blow! ({blowLevel}%)</span>
+                </>
+              ) : (
+                <>
+                  <Wind className="w-4 h-4 text-slate-500" />
+                  <span>Enable Mic Blow</span>
+                </>
+              )}
+            </button>
+          </>
+        ) : (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRelightAll}
+              className="px-5 py-3 rounded-2xl bg-white border border-rose-200 text-rose-700 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-xs hover:bg-rose-50 active:scale-95 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-rose-500" />
+              <span>Relight Candles</span>
+            </button>
+
+            <button
+              onClick={handleSliceCake}
+              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-amber-200 hover:brightness-105 active:scale-95 transition-all cursor-pointer"
+            >
+              <Scissors className="w-4 h-4 text-amber-100" />
+              <span>Slice Cake 🍰</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Button */}
+      {onNextSurprise && (
+        <div className="mt-10 pt-6 border-t border-rose-100/80 flex justify-center">
+          <button
+            onClick={onNextSurprise}
+            className="px-8 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm shadow-lg flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
+          >
+            <span>View Message 💌</span>
+            <ArrowRight className="w-4 h-4 text-rose-400" />
+          </button>
+        </div>
+      )}
+
+      {/* Angel Chiikawa Theme Banner */}
+      <div className="mt-10 bg-pink-100/90 border-2 border-pink-200 rounded-3xl p-4 shadow-sm relative overflow-hidden flex flex-col items-center justify-center max-w-lg mx-auto">
+        <span className="text-xs font-black text-pink-600 tracking-widest mb-2 font-fredoka">
+          \ てんし ANGEL CHIIKAWA /
+        </span>
+
+        {/* Main Angel Wallpaper preview */}
+        <div className="w-full h-32 sm:h-36 rounded-2xl overflow-hidden shadow-sm border border-pink-200 mb-3 relative">
+          <img
+            src="https://wallpapers.com/images/hd/chiikawa-angel-character-kbtmw1cie6d8th5q.jpg"
+            alt="Angel Chiikawa Wallpaper"
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-pink-900/30 via-transparent to-transparent pointer-events-none" />
+        </div>
+
+        <div className="flex items-center justify-between w-full px-2 my-1">
+          <img
+            src="https://i.pinimg.com/originals/78/46/82/784682badeebdaaa0035fa4e50ebe50b.png"
+            alt="Angel Chiikawa Left"
+            referrerPolicy="no-referrer"
+            className="w-12 h-12 sm:w-14 sm:h-14 object-contain mix-blend-multiply"
+          />
+          <p className="text-xs sm:text-sm font-extrabold text-pink-700 text-center px-2">
+            "My babe!!, you're the most adorable and cutest woman that i have ever met!" ❤️
+          </p>
+          <img
+            src="https://i.pinimg.com/736x/f2/9c/09/f29c09fd33b028685919a01440a634c6.jpg"
+            alt="Angel Chiikawa Right"
+            referrerPolicy="no-referrer"
+            className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-full border-2 border-pink-300"
+          />
+        </div>
+      </div>
+
+      {/* Wish Seal Modal */}
       <AnimatePresence>
         {showWishModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gradient-to-b from-slate-900 to-rose-950 border border-rose-500/30 p-6 md:p-8 rounded-3xl max-w-md w-full shadow-2xl relative"
+              className="bg-white border border-rose-200 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative text-center"
             >
-              <div className="text-center mb-6">
-                <div className="w-12 h-12 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center mx-auto mb-3">
-                  <Sparkles className="w-6 h-6 text-amber-300" />
-                </div>
-                <h3 className="text-2xl font-bold text-white">Candles Extinguished! ✨</h3>
-                <p className="text-xs text-rose-200/80 mt-1">
-                  The candles are out! Make a birthday wish and seal it into your digital time capsule.
-                </p>
+              <div className="mb-4">
+                <Sparkles className="w-8 h-8 text-rose-500 mx-auto mb-2 animate-bounce" />
+                <h3 className="text-xl font-bold text-slate-900 font-fredoka">
+                  All Candles Extinguished! ✨
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">Make your birthday wish, babe!</p>
               </div>
 
               {wishSaved ? (
-                <div className="py-6 text-center text-amber-300 font-semibold flex flex-col items-center gap-2">
-                  <Heart className="w-10 h-10 text-rose-400 fill-rose-400 animate-bounce" />
-                  <span>Your birthday wish has been sealed in the stars! 🌟</span>
+                <div className="py-4 text-center text-rose-600 font-semibold flex flex-col items-center gap-1.5 text-xs">
+                  <Heart className="w-8 h-8 text-rose-500 fill-rose-500 animate-bounce" />
+                  <span>Your birthday wish is sealed in the stars! 💖</span>
                 </div>
               ) : (
-                <form onSubmit={handleSaveWish} className="space-y-4">
+                <form onSubmit={handleSaveWish} className="space-y-3">
                   <textarea
-                    rows={3}
+                    rows={2}
                     required
-                    placeholder="Type your birthday wish here..."
+                    placeholder="Type your birthday wish..."
                     value={wishText}
                     onChange={(e) => setWishText(e.target.value)}
-                    className="w-full bg-slate-900/90 border border-rose-500/30 rounded-2xl p-3.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                    className="w-full bg-slate-50 border border-rose-200 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-400 font-nunito"
                   />
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setShowWishModal(false)}
-                      className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                      className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold cursor-pointer"
                     >
-                      Close
+                      Skip
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold shadow-lg shadow-rose-500/30 flex items-center justify-center gap-2"
+                      className="flex-1 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold shadow-md shadow-rose-200 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>Seal Wish ✨</span>
+                      <span>Seal Wish</span>
                     </button>
                   </div>
                 </form>
@@ -369,6 +535,39 @@ export const BirthdayCake: React.FC<BirthdayCakeProps> = ({ recipientName, turni
           </div>
         )}
       </AnimatePresence>
-    </section>
+
+      {/* Cake Slice Message Card Modal */}
+      <AnimatePresence>
+        {showSliceModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 20 }}
+              className="bg-white border-2 border-pink-200 p-6 rounded-3xl max-w-sm w-full shadow-2xl text-center relative overflow-hidden"
+            >
+              <div className="text-4xl mb-2">🍰</div>
+              <h3 className="text-2xl font-black text-rose-600 font-fredoka mb-1">
+                A Sweet Slice for You!
+              </h3>
+              <p className="text-xs text-slate-600 font-bold mb-4">
+                Here's a delicious slice of love baked with extra sweetness for {recipientName}!
+              </p>
+
+              <div className="bg-pink-50 border border-pink-200 rounded-2xl p-4 text-xs font-bold text-slate-700 leading-relaxed mb-4">
+                "May your new age be filled with endless smiles, sweet moments, and all the love in the world! Happy Birthday my darling!" 🍓🌸
+              </div>
+
+              <button
+                onClick={() => setShowSliceModal(false)}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold shadow-md shadow-rose-200 cursor-pointer"
+              >
+                Close & Enjoy 💖
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };

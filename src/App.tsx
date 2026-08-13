@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { RecipientConfig, GalleryItem, GuestbookNote } from './types';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { RecipientConfig } from './types';
 import { defaultConfig } from './data/defaultConfig';
 import { OpeningSurprise } from './components/OpeningSurprise';
-import { Navbar } from './components/Navbar';
 import { BirthdayCake } from './components/BirthdayCake';
 import { WishCarousel } from './components/WishCarousel';
-import { GallerySection } from './components/GallerySection';
-import { TreasureHunt } from './components/TreasureHunt';
-import { GuestbookSection } from './components/GuestbookSection';
 import { CreatorModal } from './components/CreatorModal';
 import { BackgroundParticles } from './components/BackgroundParticles';
-import { Sparkles, Heart, Gift, Camera, Compass, MessageSquare, Cake } from 'lucide-react';
+import { ChiikawaBackground } from './components/ChiikawaBackground';
+import { Heart, Music, VolumeX, Settings, Sparkles } from 'lucide-react';
+import { soundFx } from './lib/audio';
 
 export default function App() {
   const [config, setConfig] = useState<RecipientConfig>(() => {
@@ -25,14 +24,16 @@ export default function App() {
     return defaultConfig;
   });
 
-  const [hasOpenedSurprise, setHasOpenedSurprise] = useState<boolean>(() => {
-    return sessionStorage.getItem('birthday_opened') === 'true';
-  });
-
-  const [activeSection, setActiveSection] = useState<string>('cake');
+  const [hasOpenedSurprise, setHasOpenedSurprise] = useState<boolean>(false);
+  const [activeSection, setActiveSection] = useState<'cake' | 'letter'>('cake');
   const [showCreator, setShowCreator] = useState<boolean>(false);
+  const [isPlayingMusic, setIsPlayingMusic] = useState<boolean>(soundFx.getIsPlayingMusic());
 
-  // Save config changes to localStorage
+  const handleToggleMusic = () => {
+    const isNowPlaying = soundFx.toggleMusic();
+    setIsPlayingMusic(isNowPlaying);
+  };
+
   const handleSaveConfig = (newConfig: RecipientConfig) => {
     setConfig(newConfig);
     localStorage.setItem('birthday_surprise_config', JSON.stringify(newConfig));
@@ -43,26 +44,18 @@ export default function App() {
     sessionStorage.setItem('birthday_opened', 'true');
   };
 
-  // Gallery handlers
-  const handleAddGalleryItem = (item: GalleryItem) => {
-    const updatedMedia = [item, ...config.photosAndVideos];
-    const updatedConfig = { ...config, photosAndVideos: updatedMedia };
-    handleSaveConfig(updatedConfig);
-  };
-
-  // Guestbook handlers
-  const handleAddGuestbookNote = (note: GuestbookNote) => {
-    const updatedNotes = [note, ...config.guestbookNotes];
-    const updatedConfig = { ...config, guestbookNotes: updatedNotes };
-    handleSaveConfig(updatedConfig);
+  const handleToggleSection = () => {
+    setActiveSection((prev) => (prev === 'cake' ? 'letter' : 'cake'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-rose-500 selection:text-white relative overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-rose-50/70 via-pink-50/40 to-white text-slate-800 font-sans selection:bg-rose-500 selection:text-white relative overflow-x-hidden flex flex-col justify-between">
       {/* Ambient Canvas Background */}
       <BackgroundParticles />
+      <ChiikawaBackground />
 
-      {/* Opening Gift Box Overlay */}
+      {/* Opening Gift Box Overlay Landing Page */}
       {!hasOpenedSurprise && (
         <OpeningSurprise
           recipientName={config.recipientName}
@@ -71,110 +64,76 @@ export default function App() {
         />
       )}
 
-      {/* Sticky Navigation Header */}
-      <Navbar
-        recipientName={config.recipientName}
-        nickname={config.nickname}
-        onOpenCreator={() => setShowCreator(true)}
-        activeSection={activeSection}
-        setActiveSection={setActiveSection}
-      />
+      {/* Floating Minimal Controls (Music, Replay Landing, & Settings) */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        <button
+          onClick={() => setHasOpenedSurprise(false)}
+          className="p-2.5 rounded-full bg-white/90 hover:bg-white backdrop-blur-md border border-rose-200 text-rose-600 shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 px-3 text-xs font-bold"
+          title="Replay Opening Landing Page"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+          <span className="hidden sm:inline">Landing</span>
+        </button>
 
-      {/* Hero Welcome Banner */}
-      <section className="relative pt-12 pb-16 md:pt-20 md:pb-24 px-4 text-center overflow-hidden">
-        <div className="max-w-4xl mx-auto relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs md:text-sm font-semibold mb-6 animate-pulse">
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>{config.birthDate} • Celebrating You</span>
-            <Heart className="w-4 h-4 text-rose-400 fill-rose-400" />
-          </div>
+        <button
+          onClick={handleToggleMusic}
+          className="p-2.5 rounded-full bg-white/90 hover:bg-white backdrop-blur-md border border-rose-200 text-rose-600 shadow-md transition-all active:scale-95 cursor-pointer"
+          title={isPlayingMusic ? 'Mute Music' : 'Play Music'}
+        >
+          {isPlayingMusic ? <Music className="w-4 h-4 text-rose-500" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
+        </button>
 
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-rose-200 to-pink-300 mb-6 leading-tight">
-            {config.headline}
-          </h1>
+        <button
+          onClick={() => setShowCreator(true)}
+          className="p-2.5 rounded-full bg-white/90 hover:bg-white backdrop-blur-md border border-rose-200 text-rose-600 shadow-md transition-all active:scale-95 cursor-pointer"
+          title="Personalize Card"
+        >
+          <Settings className="w-4 h-4 text-rose-500" />
+        </button>
+      </div>
 
-          <p className="text-slate-300 text-sm sm:text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-10">
-            {config.subheadline}
-          </p>
+      {/* Primary Focused Stage Container */}
+      <main className="relative z-10 flex-1 my-4 sm:my-8 px-2 sm:px-4">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeSection}
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: -8 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full"
+          >
+            {activeSection === 'cake' && (
+              <BirthdayCake
+                recipientName={config.recipientName}
+                turningAge={config.turningAge}
+                onNextSurprise={handleToggleSection}
+              />
+            )}
 
-          {/* Direct Navigation Links */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <a
-              href="#cake"
-              onClick={() => setActiveSection('cake')}
-              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold text-xs md:text-sm shadow-xl shadow-rose-500/25 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
-            >
-              <Cake className="w-4 h-4" />
-              <span>Blow The Candles 🕯️</span>
-            </a>
-
-            <a
-              href="#gallery"
-              onClick={() => setActiveSection('gallery')}
-              className="px-5 py-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 font-bold text-xs md:text-sm flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
-            >
-              <Camera className="w-4 h-4 text-rose-400" />
-              <span>Memories & Videos</span>
-            </a>
-
-            <a
-              href="#treasure"
-              onClick={() => setActiveSection('treasure')}
-              className="px-5 py-3 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-xs md:text-sm flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
-            >
-              <Compass className="w-4 h-4 text-amber-300" />
-              <span>Secret Treasure Hunt 🗺️</span>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Interactive Sections */}
-      <main className="relative z-10 space-y-12">
-        {/* Interactive Birthday Cake */}
-        <BirthdayCake
-          recipientName={config.recipientName}
-          turningAge={config.turningAge}
-        />
-
-        {/* Personalized Messages & Scratch Cards */}
-        <WishCarousel
-          recipientName={config.recipientName}
-          letterMessage={config.letterMessage}
-          wishNotes={config.wishNotes}
-          coupons={config.coupons}
-        />
-
-        {/* Photos & Auto-Playing Video Gallery */}
-        <GallerySection
-          items={config.photosAndVideos}
-          onAddItem={handleAddGalleryItem}
-        />
-
-        {/* Secret Digital Treasure Hunt */}
-        <TreasureHunt stages={config.treasureStages} />
-
-        {/* Virtual Video Guestbook */}
-        <GuestbookSection
-          notes={config.guestbookNotes}
-          onAddNote={handleAddGuestbookNote}
-        />
+            {activeSection === 'letter' && (
+              <WishCarousel
+                recipientName={config.recipientName}
+                letterMessage={config.letterMessage}
+                wishNotes={config.wishNotes}
+                coupons={config.coupons}
+                mode="letter"
+                onNextSurprise={handleToggleSection}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-slate-900 bg-slate-950 text-center relative z-10 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center justify-center gap-3">
-          <div className="flex items-center gap-2 text-rose-300 font-semibold">
-            <Heart className="w-4 h-4 fill-rose-400 text-rose-400 animate-pulse" />
-            <span>Crafted uniquely for {config.recipientName}</span>
-          </div>
-          <p className="text-slate-500 max-w-sm">
-            A 1-of-1 personalized birthday experience packed with love, interactive fireworks, and digital treasures.
-          </p>
+      <footer className="py-6 border-t border-rose-100/80 bg-white/60 backdrop-blur-xs text-center relative z-10 text-xs text-slate-500">
+        <div className="max-w-4xl mx-auto px-4 flex items-center justify-center gap-1.5 font-semibold text-rose-600">
+          <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500 animate-pulse" />
+          <span>Made with love for {config.recipientName} (my babe)</span>
         </div>
       </footer>
 
-      {/* Creator / Personalizer Modal */}
+      {/* Creator / Personalize Modal */}
       {showCreator && (
         <CreatorModal
           config={config}

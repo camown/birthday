@@ -31,16 +31,16 @@ export const BackgroundParticles: React.FC = () => {
     };
     window.addEventListener('resize', handleResize);
 
-    const colors = ['#f472b6', '#fb7185', '#c084fc', '#e879f9', '#fde047', '#38bdf8'];
-    const symbols = ['✨', '💖', '⭐', '🎈', '🌸', '✦'];
+    const colors = ['#f472b6', '#fb7185', '#fda4af', '#f43f5e', '#e879f9'];
+    const symbols = ['🌸', '💖', '✨', '🌷', '✦', '💕'];
 
-    const particles: Particle[] = Array.from({ length: 45 }, () => ({
+    const particles: Particle[] = Array.from({ length: 35 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      size: Math.random() * 14 + 10,
-      speedX: (Math.random() - 0.5) * 0.6,
-      speedY: -Math.random() * 0.8 - 0.3,
-      opacity: Math.random() * 0.7 + 0.3,
+      size: Math.random() * 12 + 10,
+      speedX: (Math.random() - 0.5) * 0.4,
+      speedY: -Math.random() * 0.6 - 0.2,
+      opacity: Math.random() * 0.6 + 0.3,
       color: colors[Math.floor(Math.random() * colors.length)],
       symbol: symbols[Math.floor(Math.random() * symbols.length)]
     }));
@@ -63,7 +63,7 @@ export const BackgroundParticles: React.FC = () => {
         ctx.globalAlpha = p.opacity;
         ctx.font = `${p.size}px sans-serif`;
         ctx.fillStyle = p.color;
-        ctx.fillText(p.symbol || '✨', p.x, p.y);
+        ctx.fillText(p.symbol || '🌸', p.x, p.y);
         ctx.restore();
       });
 
@@ -81,7 +81,7 @@ export const BackgroundParticles: React.FC = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0 opacity-80"
+      className="fixed inset-0 pointer-events-none z-0 opacity-70"
     />
   );
 };

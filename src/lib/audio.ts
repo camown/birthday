@@ -128,33 +128,38 @@ class SoundController {
     });
   }
 
-  // Music Box: Happy Birthday Tune
+  // Music Box: Happy Birthday Tune (Plays ONCE only)
   public startMusic() {
     if (this.isPlayingMusic) return;
     this.isPlayingMusic = true;
     this.initCtx();
 
-    // Notes frequencies (Happy Birthday melody in C Major)
-    // C4=261.63, D4=293.66, E4=329.63, F4=349.23, G4=392.00, A4=440.00, B4=493.88, C5=523.25
+    // Melody in C Major
     const melody: [number, number][] = [
-      [261.63, 0.3], [261.63, 0.3], [293.66, 0.6], [261.63, 0.6], [349.23, 0.6], [329.63, 1.0],
-      [261.63, 0.3], [261.63, 0.3], [293.66, 0.6], [261.63, 0.6], [392.00, 0.6], [349.23, 1.0],
-      [261.63, 0.3], [261.63, 0.3], [523.25, 0.6], [440.00, 0.6], [349.23, 0.6], [329.63, 0.6], [293.66, 1.0],
-      [466.16, 0.3], [466.16, 0.3], [440.00, 0.6], [349.23, 0.6], [392.00, 0.6], [349.23, 1.2]
+      [261.63, 0.35], [261.63, 0.35], [293.66, 0.6], [261.63, 0.6], [349.23, 0.6], [329.63, 1.1],
+      [261.63, 0.35], [261.63, 0.35], [293.66, 0.6], [261.63, 0.6], [392.00, 0.6], [349.23, 1.1],
+      [261.63, 0.35], [261.63, 0.35], [523.25, 0.6], [440.00, 0.6], [349.23, 0.6], [329.63, 0.6], [293.66, 1.1],
+      [466.16, 0.35], [466.16, 0.35], [440.00, 0.6], [349.23, 0.6], [392.00, 0.6], [349.23, 1.4]
     ];
 
     let currentNote = 0;
 
     const playNextNote = () => {
       if (!this.isPlayingMusic || this.isMuted) return;
+
       const [freq, duration] = melody[currentNote];
-      // Music box chime timbre: sine + harmonic triangle
       this.playTone(freq, 'sine', duration * 0.9, 0, 0.12);
       this.playTone(freq * 2, 'triangle', duration * 0.5, 0, 0.03);
 
-      currentNote = (currentNote + 1) % melody.length;
-      const nextDelay = duration * 600;
-      this.musicInterval = window.setTimeout(playNextNote, nextDelay);
+      currentNote++;
+      if (currentNote < melody.length) {
+        const nextDelay = duration * 580;
+        this.musicInterval = window.setTimeout(playNextNote, nextDelay);
+      } else {
+        // Stop naturally after finishing once
+        this.isPlayingMusic = false;
+        this.musicInterval = null;
+      }
     };
 
     playNextNote();

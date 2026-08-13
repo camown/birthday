@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Nunito', 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+  h1, h2, h3 {
+    font-family: 'Fredoka', 'Playfair Display', Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+.font-fredoka {
+  font-family: 'Fredoka', cursive, sans-serif;
+}
+
+.font-nunito {
+  font-family: 'Nunito', sans-serif;
+}
